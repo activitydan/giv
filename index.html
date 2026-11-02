@@ -337,6 +337,8 @@
 
     /* Database ASP: tendina documenti */
     .asp-col-docs { width: 1%; text-align: right; white-space: nowrap; }
+    .asp-azioni { display: inline-flex; align-items: center; gap: 6px; }
+    .asp-azioni .btn-sm { height: 32px; }
     /* Su schermi stretti la tabella scorre di lato: la freccia resta sempre visibile a destra */
     td.asp-col-docs, th.asp-col-docs { position: sticky; right: 0; z-index: 1; background: var(--bg); }
     th.asp-col-docs { background: var(--bg-elevated); }
@@ -752,6 +754,31 @@
     <div id="tab-asp" class="tab-content">
       <div class="card">
         <div class="card-title"><span>Database ASP</span></div>
+        <form id="presidioForm" style="margin-bottom:20px; display:none;">
+          <input type="hidden" id="presidioId">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="presidioNome">Presidio</label>
+              <input type="text" id="presidioNome" class="form-control" required placeholder="Es. ASP Siracusa – Servizio veterinario">
+            </div>
+            <div class="form-group">
+              <label for="presidioZona">Zona</label>
+              <input type="text" id="presidioZona" class="form-control" placeholder="Es. Siracusa, Noto, Augusta">
+            </div>
+            <div class="form-group">
+              <label for="presidioTelefono">Telefono</label>
+              <input type="tel" id="presidioTelefono" class="form-control" placeholder="Es. 0931 484111">
+            </div>
+            <div class="form-group">
+              <label for="presidioOrari">Orari</label>
+              <input type="text" id="presidioOrari" class="form-control" placeholder="Es. Lun–Ven 8:00–14:00">
+            </div>
+          </div>
+          <div class="row-actions">
+            <button type="submit" id="presidioSalva" class="btn btn-secondary" style="width:auto;">Aggiungi presidio</button>
+            <button type="button" id="presidioAnnulla" class="btn btn-secondary" style="width:auto; display:none;" onclick="annullaModificaPresidio()">Annulla</button>
+          </div>
+        </form>
         <div class="table-wrap">
         <table class="asp-table">
           <thead>
@@ -763,24 +790,7 @@
               <th class="asp-col-docs">Documenti</th>
             </tr>
           </thead>
-          <tbody>
-            <tr>
-              <td><b>ASP Ragusa – Servizio veterinario</b></td>
-              <td>Ragusa, Modica, Vittoria</td>
-              <td><a href="tel:0932234111">0932 234111</a></td>
-              <td>Pronto intervento H24</td>
-              <td class="asp-col-docs"><button type="button" class="asp-toggle" data-presidio="asp-ragusa" onclick="apriDocumentiAsp(this)" aria-expanded="false" title="Documenti"><span class="asp-count"></span><svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></td>
-            </tr>
-            <tr class="asp-docs-row" data-presidio="asp-ragusa" hidden><td colspan="5"><div class="asp-docs"></div></td></tr>
-            <tr>
-              <td><b>ASP Catania – Sanità animale</b></td>
-              <td>Catania e provincia</td>
-              <td><a href="tel:0952541111">095 254111</a></td>
-              <td>Reperibilità festivi e notturni</td>
-              <td class="asp-col-docs"><button type="button" class="asp-toggle" data-presidio="asp-catania" onclick="apriDocumentiAsp(this)" aria-expanded="false" title="Documenti"><span class="asp-count"></span><svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></td>
-            </tr>
-            <tr class="asp-docs-row" data-presidio="asp-catania" hidden><td colspan="5"><div class="asp-docs"></div></td></tr>
-          </tbody>
+          <tbody id="aspTableBody"></tbody>
         </table>
         </div>
       </div>
@@ -1060,7 +1070,7 @@
 
     // ===== ARCHIVIO DATI =====
     // In locale i dati stanno nel browser; online vengono letti al login in "cache" e scritti su Supabase.
-    const cache = { giv_turni: [], giv_zoofila: [], giv_pianificazione: [], giv_squadre: [], giv_users: [] };
+    const cache = { giv_turni: [], giv_zoofila: [], giv_pianificazione: [], giv_squadre: [], giv_users: [], giv_presidi: [] };
 
     const TABELLE = {
       giv_turni: {
@@ -1090,8 +1100,19 @@
         nome: 'squadre', ordine: 'id', asc: false,
         toDb: s => ({ nome: s.nome, caposquadra: s.capo, membri: s.membri }),
         fromDb: r => ({ id: r.id, nome: r.nome, capo: r.caposquadra, membri: r.membri, creato_da: r.creato_da })
+      },
+      giv_presidi: {
+        nome: 'presidi', ordine: 'creato_il', asc: true,
+        toDb: p => ({ nome: p.nome, zona: p.zona || null, telefono: p.telefono || null, orari: p.orari || null }),
+        fromDb: r => ({ id: r.id, nome: r.nome, zona: r.zona || '', telefono: r.telefono || '', orari: r.orari || '' })
       }
     };
+
+    // Presidi presenti prima della tabella "presidi" (stessi id delle cartelle documenti)
+    const PRESIDI_INIZIALI = [
+      { id: 'asp-ragusa', nome: 'ASP Ragusa – Servizio veterinario', zona: 'Ragusa, Modica, Vittoria', telefono: '0932 234111', orari: 'Pronto intervento H24' },
+      { id: 'asp-catania', nome: 'ASP Catania – Sanità animale', zona: 'Catania e provincia', telefono: '095 254111', orari: 'Reperibilità festivi e notturni' }
+    ];
 
     function socioFromDb(r) {
       return { uid: r.id, badge: r.tesserino, name: r.nome, email: r.email, role: r.ruolo, active: r.attivo, emailVerified: true };
@@ -1118,16 +1139,18 @@
     function ordinaPiano(list) { list.sort((a, b) => String(a.data).localeCompare(String(b.data))); }
 
     async function aggiungi(key, item) {
+      // I presidi restano in ordine di creazione, il resto con il più recente in cima
+      const inCoda = key === 'giv_presidi';
       if (!CLOUD) {
         const list = getList(key);
-        list.unshift(item);
+        if (inCoda) list.push(item); else list.unshift(item);
         if (key === 'giv_pianificazione') ordinaPiano(list);
         return saveList(key, list);
       }
       const t = TABELLE[key];
       const { data, error } = await sb.from(t.nome).insert(t.toDb(item)).select().single();
       if (error) { erroreCloud(error); return false; }
-      cache[key].unshift(t.fromDb(data));
+      if (inCoda) cache[key].push(t.fromDb(data)); else cache[key].unshift(t.fromDb(data));
       if (key === 'giv_pianificazione') ordinaPiano(cache[key]);
       return true;
     }
@@ -1137,6 +1160,22 @@
       const { error } = await sb.from(TABELLE[key].nome).delete().eq('id', id);
       if (error) { erroreCloud(error); return false; }
       cache[key] = cache[key].filter(x => x.id !== id);
+      return true;
+    }
+
+    async function modifica(key, id, item) {
+      if (!CLOUD) {
+        const list = getList(key);
+        const i = list.findIndex(x => x.id === id);
+        if (i === -1) return false;
+        list[i] = { ...list[i], ...item, id };
+        return saveList(key, list);
+      }
+      const t = TABELLE[key];
+      const { data, error } = await sb.from(t.nome).update(t.toDb(item)).eq('id', id).select().single();
+      if (error) { erroreCloud(error); return false; }
+      const i = cache[key].findIndex(x => x.id === id);
+      if (i !== -1) cache[key][i] = t.fromDb(data);
       return true;
     }
 
@@ -1156,7 +1195,20 @@
         if (error) throw error;
         cache[k] = data.map(t.fromDb);
       }));
+      if (isZoofilo(currentUser)) await caricaPresidi();
       if (isDirigente(currentUser)) await caricaSoci();
+    }
+
+    async function caricaPresidi() {
+      const t = TABELLE.giv_presidi;
+      const { data, error } = await sb.from(t.nome).select('*').order(t.ordine, { ascending: t.asc });
+      if (error) {
+        // Tabella non ancora creata (database/aggiornamento-presidi.sql): elenco iniziale in sola lettura
+        console.error('Presidi', error);
+        cache.giv_presidi = PRESIDI_INIZIALI.map(p => ({ ...p, provvisorio: true }));
+        return;
+      }
+      cache.giv_presidi = data.map(t.fromDb);
     }
 
     async function caricaFoto(dataUrl) {
@@ -1455,6 +1507,7 @@
       ['giv_turni', 'giv_zoofila', 'giv_pianificazione', 'giv_squadre'].forEach(k => {
         if (!localStorage.getItem(k)) localStorage.setItem(k, '[]');
       });
+      if (!localStorage.getItem('giv_presidi')) saveList('giv_presidi', PRESIDI_INIZIALI);
     }
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -1559,10 +1612,11 @@
         // Nucleo zoofilo e database ASP: dirigenza o guardie zoofile
         document.getElementById('zoofilaTabBtn').style.display = zoo ? 'inline-block' : 'none';
         document.getElementById('aspTabBtn').style.display = zoo ? 'inline-block' : 'none';
-        if (zoo) { renderZoofila(); aggiornaConteggiAsp(); }
+        if (zoo) { renderZoofila(); renderPresidi(); aggiornaConteggiAsp(); }
 
-        // Squadre: tutti le vedono, solo la dirigenza le crea e le elimina
+        // Squadre e presidi ASP: solo la dirigenza li crea e li modifica
         document.getElementById('squadraForm').style.display = dir ? '' : 'none';
+        document.getElementById('presidioForm').style.display = dir ? '' : 'none';
 
         renderTurni();
         renderPianificazione();
@@ -2208,6 +2262,89 @@
         .filter(f => f.id && f.name !== '.emptyFolderPlaceholder')
         .map(f => ({ name: f.name, path: presidio + '/' + f.name, size: f.metadata && f.metadata.size }));
     }
+
+    // Elenco presidi: righe generate dai dati, con tendina documenti e (per la dirigenza) Modifica
+    const FRECCIA = '<svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    function renderPresidi() {
+      const tbody = document.getElementById('aspTableBody');
+      const lista = getList('giv_presidi');
+      const dir = isDirigente(currentUser);
+      if (!lista.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nessun presidio registrato</td></tr>';
+        return;
+      }
+      tbody.innerHTML = lista.map(p => {
+        const id = esc(p.id);
+        const tel = String(p.telefono || '').replace(/[^\d+]/g, '');
+        return `
+          <tr>
+            <td><b>${esc(p.nome)}</b></td>
+            <td>${esc(p.zona || '-')}</td>
+            <td>${tel ? `<a href="tel:${esc(tel)}">${esc(p.telefono)}</a>` : '-'}</td>
+            <td>${esc(p.orari || '-')}</td>
+            <td class="asp-col-docs">
+              <div class="asp-azioni">
+                ${dir && !p.provvisorio ? `<button type="button" class="btn btn-secondary btn-sm" onclick="modificaPresidio(${esc(JSON.stringify(p.id))})">Modifica</button>` : ''}
+                <button type="button" class="asp-toggle" data-presidio="${id}" onclick="apriDocumentiAsp(this)" aria-expanded="false" title="Documenti"><span class="asp-count"></span>${FRECCIA}</button>
+              </div>
+            </td>
+          </tr>
+          <tr class="asp-docs-row" data-presidio="${id}" hidden><td colspan="5"><div class="asp-docs"></div></td></tr>`;
+      }).join('');
+      Object.keys(docsAsp).forEach(aggiornaConteggio);
+    }
+
+    function modificaPresidio(id) {
+      if (!isDirigente(currentUser)) return;
+      const p = getList('giv_presidi').find(x => x.id === id);
+      if (!p) return;
+      document.getElementById('presidioId').value = p.id;
+      document.getElementById('presidioNome').value = p.nome || '';
+      document.getElementById('presidioZona').value = p.zona || '';
+      document.getElementById('presidioTelefono').value = p.telefono || '';
+      document.getElementById('presidioOrari').value = p.orari || '';
+      document.getElementById('presidioSalva').textContent = 'Salva modifiche';
+      document.getElementById('presidioAnnulla').style.display = '';
+      const form = document.getElementById('presidioForm');
+      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('presidioNome').focus({ preventScroll: true });
+    }
+
+    function annullaModificaPresidio() {
+      document.getElementById('presidioForm').reset();
+      document.getElementById('presidioId').value = '';
+      document.getElementById('presidioSalva').textContent = 'Aggiungi presidio';
+      document.getElementById('presidioAnnulla').style.display = 'none';
+    }
+
+    document.getElementById('presidioForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!isDirigente(currentUser)) return alert('I presidi sono gestiti dalla dirigenza.');
+      if (getList('giv_presidi').some(p => p.provvisorio)) {
+        return alert('Per aggiungere o modificare presidi va prima eseguito su Supabase lo script database/aggiornamento-presidi.sql.');
+      }
+      const form = e.target;
+      const id = document.getElementById('presidioId').value;
+      const dati = {
+        nome: document.getElementById('presidioNome').value.trim(),
+        zona: document.getElementById('presidioZona').value.trim(),
+        telefono: document.getElementById('presidioTelefono').value.trim(),
+        orari: document.getElementById('presidioOrari').value.trim()
+      };
+      if (!dati.nome) return;
+      occupato(form, true);
+      try {
+        const ok = id ? await modifica('giv_presidi', id, dati)
+                      : await aggiungi('giv_presidi', { id: 'p-' + Date.now(), ...dati });
+        if (!ok) return;
+        renderPresidi();
+        annullaModificaPresidio();
+        alert(id ? 'Presidio aggiornato.' : 'Presidio aggiunto.');
+      } finally {
+        occupato(form, false);
+      }
+    });
 
     function aggiornaConteggio(presidio) {
       const n = (docsAsp[presidio] || []).length;
