@@ -327,6 +327,17 @@
       margin-top: 24px;
     }
     .modal-content h3 { color: var(--gold-bright); margin-bottom: 15px; font-size: 1rem; }
+
+    /* Riquadri arrotondati dello stesso colore dello sfondo, distinti solo dal bordo */
+    .card, .stat-card, .nav-tabs, .user-badge-info, .login-box { background: transparent; }
+    .card, .stat-card, .nav-tabs, .user-badge-info { border-color: var(--border-strong); }
+    .login-box { box-shadow: none; }
+    .modal-content { background: var(--bg); }
+    .login-overlay { background: var(--bg); }
+
+    /* Pulsanti dell'emergenza: scritta rossa leggibile sul fondo bianco */
+    .emergency-bar a.emergency-btn { color: #7f1d1d; }
+    .emergency-bar a.emergency-btn:hover { text-decoration: none; }
     .login-overlay { overflow-y: auto; }
     .login-box { margin: auto; }
     @media (max-width: 640px) {
@@ -1317,6 +1328,14 @@
 
       if (CLOUD) {
         if (!sb) return;
+        // Appena premuto "Esci": se un'altra scheda dell'app ha risalvato la sessione, la scartiamo
+        let appenaUscito = false;
+        try { appenaUscito = sessionStorage.getItem('giv_uscito') === '1'; sessionStorage.removeItem('giv_uscito'); } catch (e) {}
+        if (appenaUscito) {
+          try { await sb.auth.signOut({ scope: 'local' }); } catch (e) {}
+          cancellaSessioneSalvata();
+          return;
+        }
         // Sessione ancora aperta su questo dispositivo: entra direttamente
         try {
           const { data } = await sb.auth.getSession();
@@ -1484,8 +1503,21 @@
     }
 
     async function logout() {
-      if (sb) { try { await sb.auth.signOut(); } catch (e) {} }
+      if (sb) {
+        try { await sb.auth.signOut({ scope: 'local' }); } catch (e) { console.error('signOut', e); }
+        // Se il server non conferma l'uscita, la libreria lascia la sessione salvata
+        // e al ricaricamento si rientrerebbe da soli: la cancelliamo comunque.
+        cancellaSessioneSalvata();
+        // Segnala al ricaricamento che l'utente è appena uscito: niente rientro automatico
+        try { sessionStorage.setItem('giv_uscito', '1'); } catch (e) {}
+      }
       location.reload();
+    }
+
+    function cancellaSessioneSalvata() {
+      Object.keys(localStorage)
+        .filter(k => /^sb-.+-auth-token/.test(k))
+        .forEach(k => localStorage.removeItem(k));
     }
 
     function switchTab(tabId) {
