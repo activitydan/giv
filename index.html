@@ -428,7 +428,7 @@
     <div class="user-badge-info" id="userInfo" style="display:none;">
       <img alt="" class="user-avatar-small" id="userAvatar">
       <span><b id="userNameLabel">Nome</b> · <span id="userBadgeLabel"></span> · <span id="userRoleLabel"></span></span>
-      <button onclick="openPasswordModal()" class="btn btn-secondary btn-sm">Cambia password</button>
+      <button onclick="openPasswordModal()" id="cambiaPassBtn" class="btn btn-secondary btn-sm" style="display:none;">Cambia password</button>
       <button onclick="logout()" class="logout-btn">Esci</button>
     </div>
   </header>
@@ -1234,6 +1234,12 @@
       localStorage.removeItem('giv_login_attempts');
     }
 
+    // Le password (la propria e quelle dei soci) le cambia solo il titolare di DIR-01 (Davide Maru)
+    const GESTORE_PASSWORD = 'DIR-01';
+    function puoGestirePassword(user) {
+      return !!user && String(user.badge || '').toUpperCase() === GESTORE_PASSWORD;
+    }
+
     function isDirigente(user) {
       if (!user) return false;
       const r = user.role || '';
@@ -1459,6 +1465,7 @@
         }
         const opName = document.getElementById('operatoreNome');
         if (opName && !opName.value) opName.value = user.name || '';
+        document.getElementById('cambiaPassBtn').style.display = puoGestirePassword(user) ? '' : 'none';
 
         const dir = isDirigente(user);
         const zoo = isZoofilo(user);
@@ -1545,12 +1552,16 @@
     }
 
     // PASSWORD
-    function openPasswordModal() { document.getElementById('passwordModal').style.display = 'flex'; }
+    function openPasswordModal() {
+      if (!puoGestirePassword(currentUser)) return alert('Per cambiare la password rivolgiti a Davide Maru.');
+      document.getElementById('passwordModal').style.display = 'flex';
+    }
     function closePasswordModal() { document.getElementById('passwordModal').style.display = 'none'; }
 
     document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.target;
+      if (!puoGestirePassword(currentUser)) return closePasswordModal();
       const curr = document.getElementById('currentPassInput').value;
       const next = document.getElementById('newPassInput').value;
       if (!next || next.length < MIN_PASS) return alert('La nuova password deve avere almeno ' + MIN_PASS + ' caratteri.');
@@ -1885,7 +1896,7 @@
             <div class="row-actions">
               <button onclick="openEditModal(${b})" class="btn btn-secondary btn-sm">Modifica</button>
               ${!u.emailVerified && u.email ? `<button onclick="verificaEmailBadge(${b})" class="btn btn-secondary btn-sm">Verifica email</button>` : ''}
-              ${CLOUD && !self ? `<button onclick="nuovaPasswordSocio(${b})" class="btn btn-secondary btn-sm">Nuova password</button>` : ''}
+              ${CLOUD && !self && puoGestirePassword(currentUser) ? `<button onclick="nuovaPasswordSocio(${b})" class="btn btn-secondary btn-sm">Nuova password</button>` : ''}
               ${u.badge !== 'DIR-01' && !self ? `<button onclick="toggleUser(${b})" class="btn btn-secondary btn-sm">${u.active !== false ? 'Sospendi' : 'Riattiva'}</button>` : ''}
             </div>
           </td>
@@ -1910,6 +1921,7 @@
     }
 
     async function nuovaPasswordSocio(b) {
+      if (!puoGestirePassword(currentUser)) return;
       const u = getUsers().find(x => x.badge === b);
       if (!u) return;
       const pass = prompt('Nuova password per ' + u.name + ' (' + u.badge + '), almeno 6 caratteri:');
