@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/sveglia", "schedule": "0 6 * * *" }
+  ]
+}

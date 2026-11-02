@@ -1024,12 +1024,12 @@
       giv_pianificazione: {
         nome: 'pianificazione', ordine: 'data', asc: true,
         toDb: p => ({ data: toISO(p.data), servizio: p.servizio, squadra: p.squadra, operatori: p.operatori }),
-        fromDb: r => ({ id: r.id, data: fromISO(r.data), servizio: r.servizio, squadra: r.squadra, operatori: r.operatori })
+        fromDb: r => ({ id: r.id, data: fromISO(r.data), servizio: r.servizio, squadra: r.squadra, operatori: r.operatori, creato_da: r.creato_da })
       },
       giv_squadre: {
         nome: 'squadre', ordine: 'id', asc: false,
         toDb: s => ({ nome: s.nome, caposquadra: s.capo, membri: s.membri }),
-        fromDb: r => ({ id: r.id, nome: r.nome, capo: r.caposquadra, membri: r.membri })
+        fromDb: r => ({ id: r.id, nome: r.nome, capo: r.caposquadra, membri: r.membri, creato_da: r.creato_da })
       }
     };
 
@@ -1192,9 +1192,24 @@
       return socioFromDb(data);
     }
 
+    // L'email serve a Supabase per l'accesso: il database la restituisce solo se la password è giusta
+    async function emailPerAccesso(badge, password) {
+      const { data, error } = await sb.rpc('accesso_tesserino', { t: badge, p: password });
+      if (!error) return data;
+      if (/TROPPI_TENTATIVI/.test(error.message || '')) {
+        throw new Error('Troppi tentativi sbagliati per questo tesserino. Riprova tra 15 minuti.');
+      }
+      // Database non ancora aggiornato (database/aggiornamento-sicurezza.sql): vecchia funzione
+      if (error.code === 'PGRST202') {
+        const vecchia = await sb.rpc('email_da_tesserino', { t: badge });
+        if (vecchia.error) throw vecchia.error;
+        return vecchia.data;
+      }
+      throw error;
+    }
+
     async function accediOnline(badge, password) {
-      const { data: email, error } = await sb.rpc('email_da_tesserino', { t: badge });
-      if (error) throw error;
+      const email = await emailPerAccesso(badge, password);
       if (!email) return null;
       const { data, error: errLogin } = await sb.auth.signInWithPassword({ email, password });
       if (errLogin) {
@@ -1409,7 +1424,8 @@
           await caricaDati();
           loginSuccess(currentUser);
         } catch (err) {
-          erroreCloud(err);
+          if (/Troppi tentativi/.test(err.message || '')) alert(err.message);
+          else erroreCloud(err);
         } finally {
           occupato(form, false);
         }
@@ -1736,7 +1752,8 @@
         data: document.getElementById('pianoData').value,
         servizio: document.getElementById('pianoServizio').value,
         squadra: document.getElementById('pianoSquadra').value,
-        operatori: document.getElementById('pianoOperatori').value
+        operatori: document.getElementById('pianoOperatori').value,
+        creato_da: idAutore()
       };
       occupato(form, true);
       try {
@@ -1763,12 +1780,26 @@
           <td>${esc(p.servizio)}</td>
           <td><span class="badge badge-safety">${esc(p.squadra)}</span></td>
           <td>${esc(p.operatori)}</td>
-          <td><button onclick="eliminaPiano(${Number(p.id)})" class="btn btn-secondary btn-sm">Elimina</button></td>
+          <td>${puoEliminare(p) ? `<button onclick="eliminaPiano(${Number(p.id)})" class="btn btn-secondary btn-sm">Elimina</button>` : ''}</td>
         </tr>
       `).join('');
     }
 
+    // Chi ha creato un elemento (online: id utente, in locale: tesserino)
+    function idAutore() {
+      if (!currentUser) return null;
+      return CLOUD ? currentUser.uid : currentUser.badge;
+    }
+
+    // Turni in programma e squadre: li elimina solo chi li ha creati o la dirigenza
+    function puoEliminare(item) {
+      if (!currentUser) return false;
+      return isDirigente(currentUser) || (!!item.creato_da && item.creato_da === idAutore());
+    }
+
     async function eliminaPiano(id) {
+      const p = getList('giv_pianificazione').find(x => x.id === id);
+      if (!p || !puoEliminare(p)) return;
       if (!confirm('Eliminare questo turno in programma?')) return;
       await elimina('giv_pianificazione', id);
       renderPianificazione();
@@ -1839,7 +1870,8 @@
         id: Date.now(),
         nome: document.getElementById('sqNome').value,
         capo: document.getElementById('sqCapo').value,
-        membri: document.getElementById('sqMembri').value
+        membri: document.getElementById('sqMembri').value,
+        creato_da: idAutore()
       };
       occupato(form, true);
       try {
@@ -1865,12 +1897,14 @@
           <td><b>${esc(s.nome)}</b></td>
           <td>${esc(s.capo)}</td>
           <td>${esc(s.membri)}</td>
-          <td><button onclick="eliminaSquadra(${Number(s.id)})" class="btn btn-secondary btn-sm">Elimina</button></td>
+          <td>${puoEliminare(s) ? `<button onclick="eliminaSquadra(${Number(s.id)})" class="btn btn-secondary btn-sm">Elimina</button>` : ''}</td>
         </tr>
       `).join('');
     }
 
     async function eliminaSquadra(id) {
+      const s = getList('giv_squadre').find(x => x.id === id);
+      if (!s || !puoEliminare(s)) return;
       if (!confirm('Eliminare questa squadra?')) return;
       await elimina('giv_squadre', id);
       renderSquadre();
