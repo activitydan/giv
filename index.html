@@ -335,6 +335,61 @@
     .modal-content { background: var(--bg); }
     .login-overlay { background: var(--bg); }
 
+    /* Database ASP: tendina documenti */
+    .asp-col-docs { width: 1%; text-align: right; white-space: nowrap; }
+    /* Su schermi stretti la tabella scorre di lato: la freccia resta sempre visibile a destra */
+    td.asp-col-docs, th.asp-col-docs { position: sticky; right: 0; z-index: 1; background: var(--bg); }
+    th.asp-col-docs { background: var(--bg-elevated); }
+    .asp-toggle {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      min-width: 44px; height: 32px; padding: 0 10px; cursor: pointer;
+      background: transparent; color: var(--gold); border: 1px solid var(--border-strong); border-radius: 7px;
+      transition: 0.15s;
+    }
+    .asp-toggle:hover, .asp-toggle[aria-expanded="true"] { border-color: var(--gold); background: var(--gold-soft); }
+    .asp-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+    .asp-toggle svg { transition: transform 0.2s; }
+    .asp-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+    .asp-count { font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); }
+    .asp-count:empty { display: none; }
+    .asp-docs-row td { padding: 12px; }
+    .asp-docs-row:hover td { background: transparent; }
+    .asp-docs { position: sticky; left: 12px; max-width: calc(100vw - 72px); }
+    .doc-empty { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 10px; }
+    .doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+    .doc-tile { position: relative; border: 1px solid var(--border-strong); border-radius: 8px; transition: 0.15s; }
+    .doc-tile:hover { border-color: var(--gold); }
+    .doc-open {
+      all: unset; box-sizing: border-box; cursor: pointer;
+      display: flex; flex-direction: column; gap: 5px; width: 100%; min-height: 86px; padding: 10px 26px 10px 10px;
+    }
+    .doc-open:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 8px; }
+    .doc-type {
+      align-self: flex-start; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.04em;
+      color: #0a0a0a; background: var(--gold); border-radius: 4px; padding: 2px 6px;
+    }
+    .doc-name {
+      font-size: 0.78rem; color: var(--text); line-height: 1.3; word-break: break-all;
+      overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .doc-size { font-size: 0.68rem; color: var(--text-dim); }
+    .doc-x {
+      position: absolute; top: 5px; right: 5px; width: 20px; height: 20px; padding: 0;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      font-size: 14px; line-height: 1; color: var(--text-secondary);
+      background: var(--bg); border: 1px solid var(--border-strong); border-radius: 50%;
+    }
+    .doc-x:hover { color: #f87171; border-color: var(--danger); }
+    .doc-add {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+      min-height: 86px; padding: 8px; cursor: pointer; text-align: center;
+      font-size: 0.75rem; color: var(--text-secondary);
+      border: 1px dashed var(--border-strong); border-radius: 8px; transition: 0.15s;
+    }
+    .doc-add:hover { border-color: var(--gold); color: var(--gold-bright); }
+    .doc-add input { display: none; }
+    .doc-piu { font-size: 1.4rem; line-height: 1; color: var(--gold); }
+
     /* Pulsanti dell'emergenza: scritta rossa leggibile sul fondo bianco */
     .emergency-bar a.emergency-btn { color: #7f1d1d; }
     .emergency-bar a.emergency-btn:hover { text-decoration: none; }
@@ -428,7 +483,7 @@
     <div class="user-badge-info" id="userInfo" style="display:none;">
       <img alt="" class="user-avatar-small" id="userAvatar">
       <span><b id="userNameLabel">Nome</b> · <span id="userBadgeLabel"></span> · <span id="userRoleLabel"></span></span>
-      <button onclick="openPasswordModal()" id="cambiaPassBtn" class="btn btn-secondary btn-sm" style="display:none;">Cambia password</button>
+      <button onclick="openPasswordModal()" id="cambiaPassBtn" class="btn btn-secondary btn-sm">Cambia password</button>
       <button onclick="logout()" class="logout-btn">Esci</button>
     </div>
   </header>
@@ -449,7 +504,7 @@
       <button class="tab-btn" data-tab="pianificazione" onclick="switchTab('pianificazione')">Pianificazione</button>
       <button class="tab-btn" data-tab="zoofila" id="zoofilaTabBtn" style="display:none;" onclick="switchTab('zoofila')">Nucleo zoofilo</button>
       <button class="tab-btn" data-tab="squadre" onclick="switchTab('squadre')">Squadre</button>
-      <button class="tab-btn" data-tab="asp" id="aspTabBtn" style="display:none;" onclick="switchTab('asp')">Contatti ASP</button>
+      <button class="tab-btn" data-tab="asp" id="aspTabBtn" style="display:none;" onclick="switchTab('asp')">Database ASP</button>
       <button class="tab-btn" data-tab="admin" id="adminTabBtn" style="display:none;" onclick="switchTab('admin')">Tesserini</button>
       <button class="tab-btn" data-tab="export" id="exportTabBtn" style="display:none;" onclick="switchTab('export')">Esporta</button>
     </div>
@@ -660,7 +715,7 @@
     <div id="tab-squadre" class="tab-content">
       <div class="card">
         <div class="card-title"><span>Squadre</span></div>
-        <form id="squadraForm" style="margin-bottom:20px;">
+        <form id="squadraForm" style="margin-bottom:20px; display:none;">
           <div class="form-grid">
             <div class="form-group">
               <label for="sqNome">Nome squadra</label>
@@ -683,8 +738,8 @@
               <tr>
                 <th>Squadra</th>
                 <th>Caposquadra</th>
-                <th>Membri Assegnati</th>
-                <th>Azioni</th>
+                <th>Membri</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="squadreTableBody"></tbody>
@@ -693,18 +748,19 @@
       </div>
     </div>
 
-    <!-- CONTATTI ASP -->
+    <!-- DATABASE ASP -->
     <div id="tab-asp" class="tab-content">
       <div class="card">
-        <div class="card-title"><span>Servizi veterinari ASP</span></div>
+        <div class="card-title"><span>Database ASP</span></div>
         <div class="table-wrap">
-        <table>
+        <table class="asp-table">
           <thead>
             <tr>
               <th>Presidio</th>
               <th>Zona</th>
               <th>Telefono</th>
               <th>Orari</th>
+              <th class="asp-col-docs">Documenti</th>
             </tr>
           </thead>
           <tbody>
@@ -713,13 +769,17 @@
               <td>Ragusa, Modica, Vittoria</td>
               <td><a href="tel:0932234111">0932 234111</a></td>
               <td>Pronto intervento H24</td>
+              <td class="asp-col-docs"><button type="button" class="asp-toggle" data-presidio="asp-ragusa" onclick="apriDocumentiAsp(this)" aria-expanded="false" title="Documenti"><span class="asp-count"></span><svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></td>
             </tr>
+            <tr class="asp-docs-row" data-presidio="asp-ragusa" hidden><td colspan="5"><div class="asp-docs"></div></td></tr>
             <tr>
               <td><b>ASP Catania – Sanità animale</b></td>
               <td>Catania e provincia</td>
               <td><a href="tel:0952541111">095 254111</a></td>
               <td>Reperibilità festivi e notturni</td>
+              <td class="asp-col-docs"><button type="button" class="asp-toggle" data-presidio="asp-catania" onclick="apriDocumentiAsp(this)" aria-expanded="false" title="Documenti"><span class="asp-count"></span><svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></td>
             </tr>
+            <tr class="asp-docs-row" data-presidio="asp-catania" hidden><td colspan="5"><div class="asp-docs"></div></td></tr>
           </tbody>
         </table>
         </div>
@@ -1249,7 +1309,8 @@
       localStorage.removeItem('giv_login_attempts');
     }
 
-    // Le password (la propria e quelle dei soci) le cambia solo il titolare di DIR-01 (Davide Maru)
+    // Ognuno cambia la propria password; reimpostare quelle dei soci (password provvisoria)
+    // spetta solo al titolare di DIR-01 (Davide Maru)
     const GESTORE_PASSWORD = 'DIR-01';
     function puoGestirePassword(user) {
       return !!user && String(user.badge || '').toUpperCase() === GESTORE_PASSWORD;
@@ -1481,7 +1542,6 @@
         }
         const opName = document.getElementById('operatoreNome');
         if (opName && !opName.value) opName.value = user.name || '';
-        document.getElementById('cambiaPassBtn').style.display = puoGestirePassword(user) ? '' : 'none';
 
         const dir = isDirigente(user);
         const zoo = isZoofilo(user);
@@ -1496,10 +1556,13 @@
         document.getElementById('exportTabBtn').style.display = dir ? 'inline-block' : 'none';
         if (dir) renderUsers();
 
-        // Nucleo zoofilo e contatti ASP: dirigenza o guardie zoofile
+        // Nucleo zoofilo e database ASP: dirigenza o guardie zoofile
         document.getElementById('zoofilaTabBtn').style.display = zoo ? 'inline-block' : 'none';
         document.getElementById('aspTabBtn').style.display = zoo ? 'inline-block' : 'none';
-        if (zoo) renderZoofila();
+        if (zoo) { renderZoofila(); aggiornaConteggiAsp(); }
+
+        // Squadre: tutti le vedono, solo la dirigenza le crea e le elimina
+        document.getElementById('squadraForm').style.display = dir ? '' : 'none';
 
         renderTurni();
         renderPianificazione();
@@ -1568,16 +1631,12 @@
     }
 
     // PASSWORD
-    function openPasswordModal() {
-      if (!puoGestirePassword(currentUser)) return alert('Per cambiare la password rivolgiti a Davide Maru.');
-      document.getElementById('passwordModal').style.display = 'flex';
-    }
+    function openPasswordModal() { document.getElementById('passwordModal').style.display = 'flex'; }
     function closePasswordModal() { document.getElementById('passwordModal').style.display = 'none'; }
 
     document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.target;
-      if (!puoGestirePassword(currentUser)) return closePasswordModal();
       const curr = document.getElementById('currentPassInput').value;
       const next = document.getElementById('newPassInput').value;
       if (!next || next.length < MIN_PASS) return alert('La nuova password deve avere almeno ' + MIN_PASS + ' caratteri.');
@@ -1865,6 +1924,7 @@
     // SQUADRE
     document.getElementById('squadraForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (!isDirigente(currentUser)) return alert('Le squadre sono gestite dalla dirigenza.');
       const form = e.target;
       const sq = {
         id: Date.now(),
@@ -1897,14 +1957,14 @@
           <td><b>${esc(s.nome)}</b></td>
           <td>${esc(s.capo)}</td>
           <td>${esc(s.membri)}</td>
-          <td>${puoEliminare(s) ? `<button onclick="eliminaSquadra(${Number(s.id)})" class="btn btn-secondary btn-sm">Elimina</button>` : ''}</td>
+          <td>${isDirigente(currentUser) ? `<button onclick="eliminaSquadra(${Number(s.id)})" class="btn btn-secondary btn-sm">Elimina</button>` : ''}</td>
         </tr>
       `).join('');
     }
 
     async function eliminaSquadra(id) {
       const s = getList('giv_squadre').find(x => x.id === id);
-      if (!s || !puoEliminare(s)) return;
+      if (!s || !isDirigente(currentUser)) return;
       if (!confirm('Eliminare questa squadra?')) return;
       await elimina('giv_squadre', id);
       renderSquadre();
@@ -2112,6 +2172,143 @@
     }
     setInterval(tickClock, 30000);
     tickClock();
+
+    // ===== DATABASE ASP: DOCUMENTI =====
+    // Archivio privato su Supabase, cartella per presidio; solo dirigenza e guardie zoofile
+    const DOC_BUCKET = 'documenti-asp';
+    const DOC_MAX_MB = 20;
+    const DOC_ACCEPT = '.pdf,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.ods,.csv,.ppt,.pptx,.odp,.jpg,.jpeg,.png,.heic,.webp,.zip';
+    const docsAsp = {};
+
+    function nomeDoc(n) { return String(n).replace(/^\d+-/, '').replace(/_/g, ' '); }
+    function tipoDoc(n) {
+      const ext = (String(n).split('.').pop() || '').toLowerCase();
+      if (ext === 'pdf') return 'PDF';
+      if (['doc', 'docx', 'odt', 'rtf'].includes(ext)) return 'DOC';
+      if (['xls', 'xlsx', 'ods', 'csv'].includes(ext)) return 'XLS';
+      if (['ppt', 'pptx', 'odp'].includes(ext)) return 'PPT';
+      if (['jpg', 'jpeg', 'png', 'heic', 'webp'].includes(ext)) return 'IMG';
+      if (ext === 'txt') return 'TXT';
+      if (ext === 'zip') return 'ZIP';
+      return 'FILE';
+    }
+    function pesoDoc(b) {
+      if (!b) return '';
+      return b < 1024 * 1024 ? Math.max(1, Math.round(b / 1024)) + ' KB' : (b / 1024 / 1024).toFixed(1) + ' MB';
+    }
+    function nomeSicuro(n) {
+      return String(n).normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^_+|_+$/g, '').slice(-120) || 'documento';
+    }
+
+    async function caricaDocumentiAsp(presidio) {
+      const { data, error } = await sb.storage.from(DOC_BUCKET).list(presidio, { limit: 500, sortBy: { column: 'created_at', order: 'desc' } });
+      if (error) throw error;
+      docsAsp[presidio] = (data || [])
+        .filter(f => f.id && f.name !== '.emptyFolderPlaceholder')
+        .map(f => ({ name: f.name, path: presidio + '/' + f.name, size: f.metadata && f.metadata.size }));
+    }
+
+    function aggiornaConteggio(presidio) {
+      const n = (docsAsp[presidio] || []).length;
+      const btn = document.querySelector(`.asp-toggle[data-presidio="${presidio}"] .asp-count`);
+      if (btn) btn.textContent = n ? String(n) : '';
+    }
+
+    async function aggiornaConteggiAsp() {
+      if (!CLOUD || !sb || !isZoofilo(currentUser)) return;
+      for (const btn of document.querySelectorAll('.asp-toggle')) {
+        try { await caricaDocumentiAsp(btn.dataset.presidio); aggiornaConteggio(btn.dataset.presidio); }
+        catch (e) { console.error('Documenti ASP', e); }
+      }
+    }
+
+    async function apriDocumentiAsp(btn) {
+      if (!isZoofilo(currentUser)) return;
+      const presidio = btn.dataset.presidio;
+      const riga = document.querySelector(`.asp-docs-row[data-presidio="${presidio}"]`);
+      const apri = riga.hidden;
+      riga.hidden = !apri;
+      btn.setAttribute('aria-expanded', String(apri));
+      if (!apri) return;
+      if (!CLOUD || !sb) {
+        riga.querySelector('.asp-docs').innerHTML = '<p class="doc-empty">I documenti sono disponibili solo con il database online.</p>';
+        return;
+      }
+      renderDocumentiAsp(presidio, !docsAsp[presidio]);
+      try {
+        await caricaDocumentiAsp(presidio);
+        renderDocumentiAsp(presidio);
+        aggiornaConteggio(presidio);
+      } catch (e) { erroreCloud(e); }
+    }
+
+    function renderDocumentiAsp(presidio, inCaricamento) {
+      const box = document.querySelector(`.asp-docs-row[data-presidio="${presidio}"] .asp-docs`);
+      if (!box) return;
+      if (inCaricamento) { box.innerHTML = '<p class="doc-empty">Caricamento…</p>'; return; }
+      const p = esc(JSON.stringify(presidio));
+      const lista = docsAsp[presidio] || [];
+      box.innerHTML = (lista.length ? '' : '<p class="doc-empty">Nessun documento caricato.</p>') +
+        '<div class="doc-grid">' +
+        lista.map((d, i) => `
+          <div class="doc-tile">
+            <button type="button" class="doc-open" onclick="apriDocAsp(${p}, ${i})" title="${esc(nomeDoc(d.name))}">
+              <span class="doc-type">${tipoDoc(d.name)}</span>
+              <span class="doc-name">${esc(nomeDoc(d.name))}</span>
+              <span class="doc-size">${pesoDoc(d.size)}</span>
+            </button>
+            <button type="button" class="doc-x" onclick="rimuoviDocAsp(${p}, ${i})" title="Rimuovi" aria-label="Rimuovi ${esc(nomeDoc(d.name))}">×</button>
+          </div>`).join('') +
+        `<label class="doc-add">
+            <input type="file" multiple accept="${DOC_ACCEPT}" onchange="caricaDocAsp(${p}, this)">
+            <span class="doc-piu">+</span><span>Aggiungi documenti</span>
+          </label>
+        </div>`;
+    }
+
+    async function caricaDocAsp(presidio, input) {
+      if (!isZoofilo(currentUser) || !sb) return;
+      const files = Array.from(input.files || []);
+      if (!files.length) return;
+      const troppoGrandi = files.filter(f => f.size > DOC_MAX_MB * 1024 * 1024);
+      if (troppoGrandi.length) alert('Non caricati (oltre ' + DOC_MAX_MB + ' MB): ' + troppoGrandi.map(f => f.name).join(', '));
+      const daCaricare = files.filter(f => f.size <= DOC_MAX_MB * 1024 * 1024);
+      const etichetta = input.parentElement.querySelector('span:last-child');
+      let errori = 0;
+      for (let i = 0; i < daCaricare.length; i++) {
+        const f = daCaricare[i];
+        if (etichetta) etichetta.textContent = `Caricamento ${i + 1} di ${daCaricare.length}…`;
+        const path = presidio + '/' + Date.now() + '-' + nomeSicuro(f.name);
+        const { error } = await sb.storage.from(DOC_BUCKET).upload(path, f, { contentType: f.type || 'application/octet-stream', upsert: false });
+        if (error) { errori++; console.error('Caricamento', f.name, error); }
+      }
+      try { await caricaDocumentiAsp(presidio); } catch (e) { erroreCloud(e); }
+      renderDocumentiAsp(presidio);
+      aggiornaConteggio(presidio);
+      if (errori) alert(errori + ' documento/i non caricato/i. Controlla la connessione e riprova.');
+    }
+
+    async function apriDocAsp(presidio, i) {
+      const d = (docsAsp[presidio] || [])[i];
+      if (!d || !sb) return;
+      // La finestra va aperta subito, prima di attese, altrimenti il browser la blocca
+      const w = window.open('', '_blank');
+      const { data, error } = await sb.storage.from(DOC_BUCKET).createSignedUrl(d.path, 600);
+      if (error) { if (w) w.close(); return erroreCloud(error); }
+      if (w) w.location.href = data.signedUrl; else location.href = data.signedUrl;
+    }
+
+    async function rimuoviDocAsp(presidio, i) {
+      const d = (docsAsp[presidio] || [])[i];
+      if (!d || !isZoofilo(currentUser)) return;
+      if (!confirm('Rimuovere "' + nomeDoc(d.name) + '"?')) return;
+      const { error } = await sb.storage.from(DOC_BUCKET).remove([d.path]);
+      if (error) return erroreCloud(error);
+      docsAsp[presidio] = docsAsp[presidio].filter(x => x.path !== d.path);
+      renderDocumentiAsp(presidio);
+      aggiornaConteggio(presidio);
+    }
 
     // ===== STAMPA / PDF =====
     function esportaPDF(tipo) {
